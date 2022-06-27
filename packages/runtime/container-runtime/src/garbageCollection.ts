@@ -39,7 +39,7 @@ import {
     TelemetryDataTag,
 } from "@fluidframework/telemetry-utils";
 
-import { IGCRuntimeOptions, RuntimeHeaders } from "./containerRuntime";
+import { ContainerRuntime, IGCRuntimeOptions, RuntimeHeaders } from "./containerRuntime";
 import { getSummaryForDatastores } from "./dataStores";
 import { pkgVersion } from "./packageVersion";
 import {
@@ -1132,6 +1132,7 @@ export class GarbageCollector implements IGarbageCollector {
                 ...event,
                 pkg: pkg ? { value: `/${pkg.join("/")}`, tag: TelemetryDataTag.PackageData } : undefined,
             });
+            (this.runtime as ContainerRuntime).emit("gcEvent", { ...event, pkg });
             event = this.pendingEventsQueue.shift();
         }
 
@@ -1215,12 +1216,6 @@ export class GarbageCollector implements IGarbageCollector {
             return;
         }
 
-        // For non-summarizer clients, only log "Loaded" type events since these objects may not be loaded in the
-        // summarizer clients if they are based off of user actions (such as scrolling to content for these objects).
-        if (!this.isSummarizerClient && eventType !== "Loaded") {
-            return;
-        }
-
         const eventName = `inactiveObject_${eventType}`;
         // We log a particular event for a given node only once so that it is not too noisy.
         const uniqueEventId = `${nodeId}-${eventName}`;
@@ -1248,6 +1243,7 @@ export class GarbageCollector implements IGarbageCollector {
                     ...event,
                     pkg: { value: `/${pkg.join("/")}`, tag: TelemetryDataTag.PackageData },
                 });
+                (this.runtime as ContainerRuntime).emit("gcEvent", { ...event, pkg });
             } else {
                 this.pendingEventsQueue.push(event);
             }
